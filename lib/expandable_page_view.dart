@@ -7,8 +7,7 @@ import 'package:flutter/material.dart';
 class ExpandablePageView extends StatefulWidget {
   final List<Widget>? children;
   final int? itemCount;
-  final Widget Function(BuildContext, int)? itemBuilder;
-  final PageController? controller;
+  final TabController? controller;
   final ValueChanged<int>? onPageChanged;
   final bool reverse;
   final Duration animationDuration;
@@ -16,7 +15,6 @@ class ExpandablePageView extends StatefulWidget {
   final ScrollPhysics? physics;
   final bool pageSnapping;
   final DragStartBehavior dragStartBehavior;
-  final bool allowImplicitScrolling;
   final String? restorationId;
   final Clip clipBehavior;
 
@@ -46,7 +44,6 @@ class ExpandablePageView extends StatefulWidget {
   ExpandablePageView({
     this.children,
     this.itemCount,
-    this.itemBuilder,
     this.controller,
     this.onPageChanged,
     this.reverse = false,
@@ -55,27 +52,21 @@ class ExpandablePageView extends StatefulWidget {
     this.physics,
     this.pageSnapping = true,
     this.dragStartBehavior = DragStartBehavior.start,
-    this.allowImplicitScrolling = false,
     this.restorationId,
     this.clipBehavior = Clip.hardEdge,
     this.animateFirstPage = false,
     this.estimatedPageSize = 0.0,
     Key? key,
-  })  : assert(
-            (children != null && itemCount == null && itemBuilder == null) ||
-                (children == null && itemCount != null && itemBuilder != null),
-            "Cannot provide both children and itemBuilder\n"
-            "If you need a fixed PageView, use children\n"
-            "If you need a dynamically built PageView, use itemBuilder and itemCount"),
-        assert(estimatedPageSize >= 0.0),
+  })  : assert(estimatedPageSize >= 0.0),
         super(key: key);
 
   @override
   _ExpandablePageViewState createState() => _ExpandablePageViewState();
 }
 
-class _ExpandablePageViewState extends State<ExpandablePageView> {
-  late PageController _pageController;
+class _ExpandablePageViewState extends State<ExpandablePageView>
+    with SingleTickerProviderStateMixin {
+  late TabController _pageController;
   late List<double> _heights;
   int _currentPage = 0;
   int _previousPage = 0;
@@ -86,13 +77,12 @@ class _ExpandablePageViewState extends State<ExpandablePageView> {
 
   double get _previousHeight => _heights[_previousPage];
 
-  bool get isBuilder => widget.itemBuilder != null;
-
   @override
   void initState() {
     _heights = _prepareHeights();
     super.initState();
-    _pageController = widget.controller ?? PageController();
+    _pageController =
+        widget.controller ?? TabController(length: 2, vsync: this);
     _pageController.addListener(_updatePage);
     _shouldDisposePageController = widget.controller == null;
   }
@@ -125,47 +115,21 @@ class _ExpandablePageViewState extends State<ExpandablePageView> {
   }
 
   Widget _buildPageView() {
-    if (isBuilder) {
-      return PageView.builder(
-        key: widget.key,
-        controller: _pageController,
-        itemBuilder: _itemBuilder,
-        itemCount: widget.itemCount,
-        onPageChanged: widget.onPageChanged,
-        reverse: widget.reverse,
-        physics: widget.physics,
-        pageSnapping: widget.pageSnapping,
-        dragStartBehavior: widget.dragStartBehavior,
-        allowImplicitScrolling: widget.allowImplicitScrolling,
-        restorationId: widget.restorationId,
-        clipBehavior: widget.clipBehavior,
-      );
-    }
-    return PageView(
+    return TabBarView(
       key: widget.key,
       controller: _pageController,
       children: _sizeReportingChildren(),
-      onPageChanged: widget.onPageChanged,
-      reverse: widget.reverse,
       physics: widget.physics,
-      pageSnapping: widget.pageSnapping,
       dragStartBehavior: widget.dragStartBehavior,
-      allowImplicitScrolling: widget.allowImplicitScrolling,
-      restorationId: widget.restorationId,
-      clipBehavior: widget.clipBehavior,
     );
   }
 
   List<double> _prepareHeights() {
-    if (isBuilder) {
-      return List.filled(widget.itemCount!, widget.estimatedPageSize);
-    } else {
-      return widget.children!.map((child) => widget.estimatedPageSize).toList();
-    }
+    return widget.children!.map((child) => widget.estimatedPageSize).toList();
   }
 
   void _updatePage() {
-    final newPage = _pageController.page!.round();
+    final newPage = _pageController.index;
     if (_currentPage != newPage) {
       setState(() {
         _firstPageLoaded = true;
@@ -173,14 +137,6 @@ class _ExpandablePageViewState extends State<ExpandablePageView> {
         _currentPage = newPage;
       });
     }
-  }
-
-  Widget _itemBuilder(BuildContext context, int index) {
-    final item = widget.itemBuilder!(context, index);
-    return OverflowPage(
-      onSizeChange: (size) => setState(() => _heights[index] = size.height),
-      child: item,
-    );
   }
 
   List<Widget> _sizeReportingChildren() => widget.children!

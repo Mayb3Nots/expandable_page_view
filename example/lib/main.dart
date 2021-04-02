@@ -49,13 +49,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 animateFirstPage: true,
                 estimatedPageSize: 100,
                 itemCount: 3,
-                itemBuilder: (context, index) {
-                  return ExamplePage(
-                    Colors.blue,
-                    index.toString(),
-                    (index + 1) * 100.0,
-                  );
-                },
               ),
               const SizedBox(height: 20),
               Text("UNDER PAGE VIEW WIDGET"),
